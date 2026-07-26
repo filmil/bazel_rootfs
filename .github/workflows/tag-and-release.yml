@@ -4,12 +4,12 @@
 # * builds a source bundle and uploads it into the release
 # * builds binaries and uploads them into the release
 #
-# The workflow can be run manually, otherwise it runs once a week.
+# The workflow can be run manually, otherwise it runs once in 4 months.
 name: Tag and Release
 
 on:
   schedule:
-    - cron: '0 0 23 * *'
+    - cron: '0 0 23 */4 *'
   workflow_dispatch:
 
 jobs:
@@ -34,24 +34,30 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           release_branches: main
+          default_bump: false
       - name: Create a GitHub release
+        if: ${{ steps.tag_version.outputs.new_tag != '' }}
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ steps.tag_version.outputs.new_tag }}
           generateReleaseNotes: true
       - name: Get release tag
+        if: ${{ steps.tag_version.outputs.new_tag != '' }}
         id: get_version
         run: echo "VERSION=${{ steps.tag_version.outputs.new_tag }}" >> $GITHUB_ENV
       - name: Get repo name
+        if: ${{ steps.tag_version.outputs.new_tag != '' }}
         id: get_repo_name
         run: echo "REPO_NAME=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
       - name: "Publish source archive"
+        if: ${{ steps.tag_version.outputs.new_tag != '' }}
         uses: thedoctor0/zip-release@0.7.5
         with:
           type: 'zip'
           filename: "${{ env.REPO_NAME }}-${{ env.VERSION }}.zip"
           exclusions: '*.git* /*node_modules/* .editorconfig /bazel-* /integration/*'
       - name: "Upload source archive"
+        if: ${{ steps.tag_version.outputs.new_tag != '' }}
         uses: ncipollo/release-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,6 +69,7 @@ jobs:
   # This workflow waits for binary artifacts to be published.
   publish:
     needs: tag
+    if: ${{ needs.tag.outputs.tag_name != '' }}
     uses: ./.github/workflows/publish.yml
     with:
       tag_name: ${{ needs.tag.outputs.tag_name }}
