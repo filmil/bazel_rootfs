@@ -52,6 +52,12 @@ if [[ ! -d "${_rootfs_dir}" ]]; then
   echo >&2 "$0: could not locate rootfs: ${_rootfs_rlocation}"
   exit 1
 fi
+# Both ways of finding the rootfs give a path relative to the working
+# directory. Everything below is derived from it, PATH included, and a tool
+# that changes directory would then be left with a PATH that resolves to
+# nothing -- silently, because a command that is not found looks the same as a
+# command that was never wanted. TeX and updmap both do exactly that.
+_rootfs_dir="$(cd "${_rootfs_dir}" && pwd)"
 readonly _rootfs_dir
 
 # Tools that keep per-user state need somewhere to put it. Without this
