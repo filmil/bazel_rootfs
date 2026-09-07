@@ -65,7 +65,43 @@ if [[ -z "${_ld_so}" ]]; then
 fi
 readonly _ld_so
 
+readonly _target="${_rootfs_dir}${_binary_path}"
+if [[ ! -e "${_target}" ]]; then
+  echo >&2 "$0: ${_binary_path} does not exist in ${_rootfs_dir}"
+  exit 1
+fi
+
+# The loader only runs ELF binaries. A packaged tool is often a script, so
+# honour its shebang and run the interpreter from the rootfs instead. Debian
+# ships gladtex as "#!/usr/bin/python3", for example, and handing that to
+# ld.so fails with "invalid ELF header".
+_interp=()
+if [[ "$(head -c 2 "${_target}")" == "#!" ]]; then
+    _shebang="$(head -n 1 "${_target}")"
+    _shebang="${_shebang#\#!}"
+    # Split so that "#!/usr/bin/env python3" works as well as a bare path.
+    read -r -a _shebang_parts <<< "${_shebang}"
+    _interp_path="${_rootfs_dir}${_shebang_parts[0]}"
+    if [[ "${_shebang_parts[0]}" == */env && ${#_shebang_parts[@]} -gt 1 ]]; then
+        _interp_path="${_rootfs_dir}/usr/bin/${_shebang_parts[1]}"
+        _shebang_parts=("${_shebang_parts[@]:1}")
+    fi
+    if [[ ! -x "${_interp_path}" ]]; then
+        echo >&2 "$0: interpreter ${_shebang_parts[0]} for ${_binary_path} is not in the rootfs"
+        exit 1
+    fi
+    _interp=("${_interp_path}" "${_shebang_parts[@]:1}")
+fi
+
+if [[ ${#_interp[@]} -gt 0 ]]; then
+  exec env \
+    LD_LIBRARY_PATH="${_ld_library_path}" \
+    PATH="${_path}" \
+    PYTHONHOME="${_rootfs_dir}/usr" \
+      "${_ld_so}" "${_interp[@]}" "${_target}" "${@}"
+fi
+
 exec env \
   LD_LIBRARY_PATH="${_ld_library_path}" \
   PATH="${_path}" \
-    "${_ld_so}" "${_rootfs_dir}${_binary_path}" "${@}"
+    "${_ld_so}" "${_target}" "${@}"
