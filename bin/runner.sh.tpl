@@ -1,5 +1,10 @@
-#! /usr/bin/env bash
+#!/bin/bash
 # vi: ft=bash
+#
+# /bin/bash rather than /usr/bin/env bash on purpose. This script sets PATH to
+# the rootfs, and a rootfs built from a short package list has no shell in it.
+# A tool that execs another rootfs_binary would then fail to start it with
+# "/usr/bin/env: 'bash': No such file or directory".
 #
 # Runs one binary out of a rootfs directory that Bazel provides.
 #
