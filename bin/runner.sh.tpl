@@ -43,7 +43,27 @@ readonly _rootfs_dir
 
 readonly _ld_library_path="${_rootfs_dir}/lib/x86_64-linux-gnu:${_rootfs_dir}/usr/lib/x86_64-linux-gnu"
 readonly _path="${_rootfs_dir}/bin:${_rootfs_dir}/usr/bin"
-readonly _ld_so="${_rootfs_dir}/lib64/ld-linux-x86-64.so.2"
+
+# A rootfs built from a small package set can be usr-merged with no top level
+# /lib64: the compatibility symlinks come from base-files, which such a rootfs
+# has no reason to install. Look in both places rather than assume one.
+_ld_so=""
+for _candidate in \
+    "${_rootfs_dir}/lib64/ld-linux-x86-64.so.2" \
+    "${_rootfs_dir}/usr/lib64/ld-linux-x86-64.so.2" \
+    "${_rootfs_dir}/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2" \
+    "${_rootfs_dir}/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"; do
+  if [[ -x "${_candidate}" ]]; then
+    _ld_so="${_candidate}"
+    break
+  fi
+done
+if [[ -z "${_ld_so}" ]]; then
+  echo >&2 "$0: no dynamic loader found under ${_rootfs_dir}"
+  echo >&2 "    looked in lib64, usr/lib64, lib/x86_64-linux-gnu, usr/lib/x86_64-linux-gnu"
+  exit 1
+fi
+readonly _ld_so
 
 exec env \
   LD_LIBRARY_PATH="${_ld_library_path}" \
