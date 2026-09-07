@@ -13,6 +13,14 @@
 # `bazel run` and when the target is used as a tool in another rule's action,
 # where command line arguments would not be applied.
 
+# This script sets PATH to the rootfs for the tool it runs, and that PATH is
+# inherited by anything the tool starts. When one wrapped tool execs another,
+# as asymptote does with ghostscript, the second script would then find no
+# grep, cut or tr for its own runfiles lookup. Guarantee the basics for the
+# script itself; the tool still gets the rootfs PATH below.
+PATH="${PATH:-}:/usr/bin:/bin"
+export PATH
+
 # --- begin runfiles.bash initialization v3 (non-fatal) ---
 # Unlike the stock preamble this does not exit when the runfiles library is
 # absent. There is no runfiles tree when this script runs as a tool inside
