@@ -27,6 +27,10 @@ def _rootfs_binary_impl(ctx):
         output = script,
         is_executable = True,
         substitutions = {
+            "@@TOOL_ENV@@": "\n".join([
+                'export {}="{}"'.format(k, v.replace("%ROOTFS%", "${_rootfs_dir}"))
+                for k, v in sorted(ctx.attr.env.items())
+            ]),
             "@@ROOTFS_RLOCATION@@": rlocation,
             "@@ROOTFS_EXECPATH@@": rootfs.path,
             "@@BINARY_PATH@@": ctx.attr.binary_path,
@@ -51,6 +55,11 @@ rootfs_binary = rule(
             allow_single_file = True,
             mandatory = True,
             doc = "A directory produced by the `rootfs` rule in //image:rules.bzl.",
+        ),
+        "env": attr.string_dict(
+            doc = "Environment to set before running the tool. %ROOTFS% in a " +
+                  "value is replaced with the rootfs directory, so a tool can " +
+                  "be pointed at its own data inside the rootfs.",
         ),
         "binary_path": attr.string(
             mandatory = True,

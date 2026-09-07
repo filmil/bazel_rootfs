@@ -41,6 +41,19 @@ if [[ ! -d "${_rootfs_dir}" ]]; then
 fi
 readonly _rootfs_dir
 
+# Tools that keep per-user state need somewhere to put it. Without this
+# asymptote tries to create /.asy and stops, because a Bazel action runs with
+# an empty environment.
+if [[ -z "${HOME:-}" || ! -w "${HOME:-/}" ]]; then
+  HOME="$(mktemp -d)"
+  export HOME
+fi
+
+# Per-tool environment, with %ROOTFS% standing for the rootfs directory. A
+# packaged tool often needs to be told where its own data lives, and only the
+# caller knows which variable that is.
+@@TOOL_ENV@@
+
 readonly _ld_library_path="${_rootfs_dir}/lib/x86_64-linux-gnu:${_rootfs_dir}/usr/lib/x86_64-linux-gnu"
 readonly _path="${_rootfs_dir}/bin:${_rootfs_dir}/usr/bin"
 
