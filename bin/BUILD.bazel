@@ -1,3 +1,5 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load(":defs.bzl", "rootfs_binary")
 load(":macros.bzl", "sh_binary_and_test")
 
 package(default_visibility = ["//visibility:public"])
@@ -15,16 +17,24 @@ sh_binary_and_test(
     name = "nvc",
 )
 
-
 # A generic rootfs based binary runner.
 sh_binary(
     name = "run",
-    srcs = [ "run.sh" ],
+    srcs = ["run.sh"],
     data = [
         "//image:rootfs",
-        "@rules_shell//shell/runfiles",
         "@bazel_tools//tools/bash/runfiles",
         "@multitool//tools/gotopt2",
+        "@rules_shell//shell/runfiles",
     ],
 )
 
+exports_files(["runner.sh.tpl"])
+
+# Proves rootfs_binary against this repository's own rootfs. A consumer builds
+# a rootfs from its own manifest and points the same rule at that instead.
+rootfs_binary(
+    name = "ghdl_mcode",
+    binary_path = "/usr/bin/ghdl-mcode",
+    rootfs = "//image:rootfs",
+)

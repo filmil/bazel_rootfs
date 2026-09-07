@@ -1,8 +1,7 @@
 # LICENSE sha256: c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
-load(":rules.bzl", "rootfs")
 load("@rules_zstd//zstd/decompress:defs.bzl", "zstd_decompress")
-
+load(":rules.bzl", "rootfs")
 
 zstd_decompress(
     name = "nvc_deb_decompress",
@@ -34,7 +33,10 @@ filegroup(
 rootfs(
     name = "rootfs",
     image_tar = ":image.tar",
-    visibility = [ "//bin:__subpackages__"],
+    # Files to add to xrootfs. The created files will be empty.
+    markers = [
+        "HERE",
+    ],
     # Links that haven't been installed, removing them otherwise bazel objects.
     to_remove = [
         "etc/rmt",
@@ -43,8 +45,7 @@ rootfs(
         "usr/share/man/man1/cpp-13.1",
         "usr/share/man/man1/cpp.1.gz",
     ],
-    # Files to add to xrootfs. The created files will be empty.
-    markers = [
-        "HERE",
-    ]
+    # Public so that a consumer can point rootfs_binary at its own rootfs
+    # built the same way.
+    visibility = ["//visibility:public"],
 )
