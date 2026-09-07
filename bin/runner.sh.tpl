@@ -18,6 +18,13 @@
 # as asymptote does with ghostscript, the second script would then find no
 # grep, cut or tr for its own runfiles lookup. Guarantee the basics for the
 # script itself; the tool still gets the rootfs PATH below.
+# What the caller asked for, before the line below adds to it. The tool gets
+# this ahead of the rootfs: a caller that wraps some of the rootfs's own
+# programs -- because they cannot be run directly either -- puts those
+# wrappers on PATH, and they have to win over the packaged binaries they
+# wrap. gladtex reaches latex and dvipng this way.
+readonly _caller_path="${PATH:-}"
+
 PATH="${PATH:-}:/usr/bin:/bin"
 export PATH
 
@@ -74,7 +81,7 @@ fi
 @@TOOL_ENV@@
 
 readonly _ld_library_path="${_rootfs_dir}/lib/x86_64-linux-gnu:${_rootfs_dir}/usr/lib/x86_64-linux-gnu"
-readonly _path="${_rootfs_dir}/bin:${_rootfs_dir}/usr/bin"
+readonly _path="${_caller_path:+${_caller_path}:}${_rootfs_dir}/bin:${_rootfs_dir}/usr/bin"
 
 # A rootfs built from a small package set can be usr-merged with no top level
 # /lib64: the compatibility symlinks come from base-files, which such a rootfs
