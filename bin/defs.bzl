@@ -18,9 +18,17 @@ def _rootfs_binary_impl(ctx):
     rootfs = ctx.file.rootfs
     script = ctx.actions.declare_file("{}_runner.sh".format(ctx.label.name))
 
-    # rlocation wants `<workspace>/<short path>`; under an action there is no
-    # runfiles tree, so the exec path is used as a fallback.
-    rlocation = "{}/{}".format(ctx.workspace_name, rootfs.short_path)
+    # rlocation wants a repository-qualified path. For a file in this module
+    # that is `<workspace>/<short path>`, but a consumer builds the rootfs in
+    # its own module, and short_path then already starts with `../<repo>` --
+    # prefixing the workspace name on top of that produces
+    # `_main/../bazel_ebook+/image/rootfs`, which the runfiles library does
+    # not resolve. Under an action there is no runfiles tree at all, so the
+    # exec path is used as a fallback.
+    if rootfs.short_path.startswith("../"):
+        rlocation = rootfs.short_path[len("../"):]
+    else:
+        rlocation = "{}/{}".format(ctx.workspace_name, rootfs.short_path)
 
     ctx.actions.expand_template(
         template = ctx.file._template,
