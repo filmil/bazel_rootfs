@@ -16,8 +16,8 @@
         "binaries": [
             {
                 "kind": "archive",
-                "url": "https://github.com/filmil/xrootfs/releases/download/v0.1.0/xrootfs-linux-amd64.zip",
-                "sha256": "",
+                "url": "https://github.com/filmil/xrootfs/releases/download/v0.3.0/xrootfs-linux-amd64.zip",
+                "sha256": "78b013e8db3529b6ad13a2c21f1fa22bdcecddf0892c339117f09a3aee46048b",
                 "os": "linux",
                 "file": "xrootfs/xrootfs",
                 "cpu": "x86_64"
