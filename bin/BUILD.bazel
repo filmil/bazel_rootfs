@@ -13,9 +13,6 @@ sh_binary_and_test(
     name = "proot",
 )
 
-sh_binary_and_test(
-    name = "nvc",
-)
 
 # A generic rootfs based binary runner.
 sh_binary(

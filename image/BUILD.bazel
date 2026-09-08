@@ -1,21 +1,12 @@
 # LICENSE sha256: c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
-load("@rules_zstd//zstd/decompress:defs.bzl", "zstd_decompress")
 load(":rules.bzl", "rootfs")
-
-zstd_decompress(
-    name = "nvc_deb_decompress",
-    src = "@nvc_deb//:data.tar.zst",
-)
 
 oci_image(
     name = "image",
     architecture = "amd64",
     os = "linux",
-    tars = [
-        "@rootfs//:flat",
-        ":nvc_deb_decompress",
-    ],
+    tars = ["@rootfs//:flat"],
 )
 
 oci_load(
