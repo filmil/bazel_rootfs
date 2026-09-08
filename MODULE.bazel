@@ -9,7 +9,6 @@ bazel_dep(name = "gotopt2", version = "2.8.3")
 bazel_dep(name = "rules_bid", version = "2.2.2")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 bazel_dep(name = "rules_oci", version = "2.3.0")
-bazel_dep(name = "rules_zstd", version = "1.0.0")
 
 
 # multitool
@@ -28,16 +27,4 @@ apt.install(
 )
 use_repo(apt, "rootfs")
 
-
-# some additional programs
-http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-http_archive(
-    name = "nvc_deb",
-    urls = [
-        "https://github.com/nickg/nvc/releases/download/r1.18.0/nvc_1.18.0-1_amd64_ubuntu-24.04.deb",
-    ],
-    integrity = "sha256-ffdR8qjPVCoe2xf/w+ZvbMa3Egpkvo6uNHDuJ3j4CBc=",
-    build_file_content = """exports_files(["data.tar.zst"])
-    """,
-)
 
