@@ -67,7 +67,13 @@ rootfs_binary = rule(
         "env": attr.string_dict(
             doc = "Environment to set before running the tool. %ROOTFS% in a " +
                   "value is replaced with the rootfs directory, so a tool can " +
-                  "be pointed at its own data inside the rootfs.",
+                  "be pointed at its own data inside the rootfs.\n\n" +
+                  "The generated script already points ghostscript, " +
+                  "ImageMagick, asymptote, calibre and fontconfig at their " +
+                  "own data when the rootfs contains them, by globbing for " +
+                  "the directories rather than naming a distro version. " +
+                  "Anything set here is applied afterwards and wins, so an " +
+                  "unusual case can still be spelled out.",
         ),
         "binary_path": attr.string(
             mandatory = True,

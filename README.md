@@ -62,6 +62,54 @@ To see how it builds a library, run this:
 cd integration && bazel build //:lib
 ```
 
+## Resource paths inside the rootfs
+
+Debian compiles absolute paths into its binaries, so a tool run out of a
+rootfs looks for its own data at `/usr/share/...` on the running machine.
+The failure mode is the unhelpful one: on a host that happens to have the
+package installed the tool silently uses the host's files and appears to
+work, and on one that does not it fails, sometimes with a segfault and no
+message.
+
+`rootfs_binary` handles the cases below by itself. Nothing has to be passed
+for them:
+
+| package | variables set |
+| --- | --- |
+| ghostscript | `GS_LIB` |
+| ImageMagick | `MAGICK_CONFIGURE_PATH`, `MAGICK_CODER_MODULE_PATH`, `MAGICK_FILTER_MODULE_PATH` |
+| asymptote | `ASYMPTOTE_DIR`, `ASYMPTOTE_GS` |
+| calibre | `CALIBRE_PYTHON_PATH`, `CALIBRE_EXTENSIONS_PATH`, `CALIBRE_RESOURCES_PATH`, `PYTHONPATH` |
+| fontconfig | `FONTCONFIG_PATH` |
+
+Three things about how that works:
+
+* The directories are found by globbing inside the rootfs, not written out.
+  Several of them carry a version, `ImageMagick-6.9.12` and
+  `ghostscript/10.02.1` among them, and a literal path stops matching on the
+  next distro bump without saying so.
+* Detection keys off what the rootfs contains, not off which binary is being
+  run, because a program can need another package's data. `drawtiming` needs
+  the ImageMagick module paths and is not an ImageMagick binary.
+* A variable that already has a value is left alone, and the target's own
+  `env` is applied afterwards, so an explicit setting always wins.
+
+`PYTHONPATH` is the one exception to detection by content: it is set only
+when the rootfs actually contains calibre, because other Python programs
+read it too.
+
+For anything not in that table, use `env`, where `%ROOTFS%` stands for the
+rootfs directory:
+
+```starlark
+rootfs_binary(
+    name = "mytool",
+    binary_path = "/usr/bin/mytool",
+    rootfs = ":rootfs",
+    env = {"MYTOOL_DATA": "%ROOTFS%/usr/share/mytool"},
+)
+```
+
 ## Notes
 
 * Only Linux host and target are supported for now, although it should be
