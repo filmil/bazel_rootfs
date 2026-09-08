@@ -75,9 +75,117 @@ if [[ -z "${HOME:-}" || ! -w "${HOME:-/}" ]]; then
   export HOME
 fi
 
+
+# --- begin known resource environment ---
+# Debian compiles absolute paths into its binaries, so a tool run out of a
+# rootfs looks for its own data at /usr/share/... on the running machine. On a
+# host that happens to have the package installed it silently uses the host's
+# files; on one that does not it fails, sometimes with a segfault and no
+# message. These functions point the cases we know about back inside the
+# rootfs, so that a consumer does not have to rediscover each one.
+#
+# Paths are globbed rather than written out. Several carry a version that
+# changes with the distro release, ImageMagick-6.9.12 and ghostscript/10.02.1
+# among them, and a glob keeps working across an upgrade where a literal
+# string silently stops matching.
+#
+# Detection keys off what the rootfs contains, not off the binary being run,
+# because a program can need another package's data: drawtiming needs the
+# ImageMagick module paths and is not an ImageMagick binary.
+#
+# A variable that already has a value is left alone, so anything the caller
+# exported wins. The per-target `env` is applied after this block and wins
+# too.
+
+# _rootfs_env_globs VAR PATTERN...
+# Sets VAR to every existing directory matching a pattern under the rootfs,
+# joined with ":". Reads _rootfs_env_dir from its caller.
+_rootfs_env_globs() {
+  local _var="$1"
+  shift
+  if [[ -n "${!_var:-}" ]]; then
+    return 0
+  fi
+  local _restore_nullglob=0
+  if ! shopt -q nullglob; then
+    _restore_nullglob=1
+    shopt -s nullglob
+  fi
+  local _found=()
+  local _pat _match
+  for _pat in "$@"; do
+    for _match in "${_rootfs_env_dir}"${_pat}; do
+      if [[ -d "${_match}" ]]; then
+        _found+=("${_match}")
+      fi
+    done
+  done
+  if [[ "${_restore_nullglob}" -eq 1 ]]; then
+    shopt -u nullglob
+  fi
+  if [[ "${#_found[@]}" -eq 0 ]]; then
+    return 0
+  fi
+  local IFS=":"
+  export "${_var}=${_found[*]}"
+}
+
+# _rootfs_apply_known_env ROOTFS_DIR
+_rootfs_apply_known_env() {
+  local _rootfs_env_dir="$1"
+
+  # Ghostscript stops with "Can't find initialization file gs_init.ps".
+  if [[ -d "${_rootfs_env_dir}/usr/share/ghostscript" ]]; then
+    _rootfs_env_globs GS_LIB \
+      "/usr/share/ghostscript/*/Resource/Init" \
+      "/usr/share/ghostscript/*/lib" \
+      "/usr/share/ghostscript/*/Resource/Font" \
+      "/usr/share/ghostscript/fonts"
+  fi
+
+  # ImageMagick segfaults with no message when it cannot find its coders.
+  if [[ -d "${_rootfs_env_dir}/usr/lib" ]]; then
+    _rootfs_env_globs MAGICK_CONFIGURE_PATH "/etc/ImageMagick-*"
+    _rootfs_env_globs MAGICK_CODER_MODULE_PATH \
+      "/usr/lib/*/ImageMagick-*/modules-*/coders"
+    _rootfs_env_globs MAGICK_FILTER_MODULE_PATH \
+      "/usr/lib/*/ImageMagick-*/modules-*/filters"
+  fi
+
+  # Asymptote reports "could not load module 'plain'".
+  if [[ -d "${_rootfs_env_dir}/usr/share/asymptote" ]]; then
+    _rootfs_env_globs ASYMPTOTE_DIR "/usr/share/asymptote"
+    if [[ -z "${ASYMPTOTE_GS:-}" && -x "${_rootfs_env_dir}/usr/bin/gs" ]]; then
+      export ASYMPTOTE_GS="${_rootfs_env_dir}/usr/bin/gs"
+    fi
+  fi
+
+  # Calibre ships its own Python tree and fails to import from it otherwise.
+  # PYTHONPATH is set only in this branch: it is a variable other Python
+  # programs read, so it is not something to export because some unrelated
+  # rootfs happens to contain dist-packages.
+  if [[ -d "${_rootfs_env_dir}/usr/lib/calibre" ]]; then
+    _rootfs_env_globs CALIBRE_PYTHON_PATH "/usr/lib/calibre"
+    _rootfs_env_globs CALIBRE_EXTENSIONS_PATH "/usr/lib/calibre/calibre/plugins"
+    _rootfs_env_globs CALIBRE_RESOURCES_PATH "/usr/share/calibre"
+    _rootfs_env_globs PYTHONPATH \
+      "/usr/lib/calibre" \
+      "/usr/lib/python3/dist-packages"
+  fi
+
+  # Fontconfig falls back to the host's fonts without this.
+  if [[ -d "${_rootfs_env_dir}/etc/fonts" ]]; then
+    _rootfs_env_globs FONTCONFIG_PATH "/etc/fonts"
+  fi
+}
+# --- end known resource environment ---
+
+_rootfs_apply_known_env "${_rootfs_dir}"
+
 # Per-tool environment, with %ROOTFS% standing for the rootfs directory. A
 # packaged tool often needs to be told where its own data lives, and only the
-# caller knows which variable that is.
+# caller knows which variable that is. Applied after the block above, so an
+# explicit value always wins over a detected one.
 @@TOOL_ENV@@
 
 readonly _ld_library_path="${_rootfs_dir}/lib/x86_64-linux-gnu:${_rootfs_dir}/usr/lib/x86_64-linux-gnu"
