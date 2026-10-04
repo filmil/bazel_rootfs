@@ -4,12 +4,15 @@
 # * builds a source bundle and uploads it into the release
 # * builds binaries and uploads them into the release
 #
-# The workflow can be run manually, otherwise it runs once in 4 months.
+# The workflow runs once a week, and can be run manually. A scheduled run
+# releases only when something was committed since the last release and a
+# commit asks for a version bump; otherwise it stops after the check job.
 name: Tag and Release
 
 on:
   schedule:
-    - cron: '0 0 23 */4 *'
+    # Mondays, 00:00 UTC.
+    - cron: '0 0 * * 1'
   workflow_dispatch:
     inputs:
       force_release:
@@ -22,7 +25,41 @@ on:
         default: false
 
 jobs:
+  # Did anything get committed since the last release? A weekly run that
+  # finds nothing stops here, before the build. `force_release` skips the
+  # question.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.changes.outputs.changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history and tags: `git describe` needs both, and the default
+          # shallow checkout has neither.
+          fetch-depth: 0
+      - name: Look for commits since the last release
+        id: changes
+        run: |
+          set -o errexit -o nounset -o pipefail
+          latest="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          if [ -z "${latest}" ]; then
+            echo "No tag yet; releasing."
+            echo "changed=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          if [ "$(git rev-list -n 1 "${latest}")" = "$(git rev-parse HEAD)" ]; then
+            echo "HEAD is already released as ${latest}. Nothing to release."
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "$(git rev-list --count "${latest}"..HEAD) commit(s) since ${latest}."
+            echo "changed=true" >> "${GITHUB_OUTPUT}"
+          fi
+
   tag:
+    needs: check
+    if: ${{ needs.check.outputs.changed == 'true' || inputs.force_release }}
     runs-on: ubuntu-latest
     outputs:
       tag_name: ${{ steps.tag_version.outputs.new_tag }}
