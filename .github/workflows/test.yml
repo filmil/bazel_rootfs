@@ -21,7 +21,7 @@ jobs:
           disk-cache: ${{ github.workflow }}
           repository-cache: false
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Test
         run: "bazel test //... --test_summary=terse --test_output=errors"
       - name: Build
